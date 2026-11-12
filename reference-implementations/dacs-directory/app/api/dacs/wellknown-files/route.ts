@@ -26,7 +26,21 @@ export async function GET(req: NextRequest) {
   if (!claim || !hex) return NextResponse.json({ error: "need ?claim=" }, { status: 400 });
 
   const seller = loadCatalog().sellers.find((s) => s.primaryClaim === claim);
-  if (!seller || seller.listings.length === 0) {
+  if (!seller) {
+    return NextResponse.json(
+      { error: "no indexed listings for that claim — publish/index first" },
+      { status: 404 },
+    );
+  }
+  // A hold from an unavailable/refused anchor read makes the index incomplete (same as a live unread).
+  // Content-rejection holds do not block.
+  if (seller.heldListingVersions?.some((h) => h.reason === "anchor-unread")) {
+    return NextResponse.json(
+      { error: "held listing after refused anchor read: the index would be incomplete", reason: "anchor-read failure on held listing" },
+      { status: 503 },
+    );
+  }
+  if (seller.listings.length === 0) {
     return NextResponse.json(
       { error: "no indexed listings for that claim — publish/index first" },
       { status: 404 },

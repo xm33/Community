@@ -270,7 +270,7 @@ export interface SellerRecord {
   cci: CciBadge[];
   listings: ListingSummary[];
   /** Versions a held anchor carried from an earlier pass into supersession (DACS-1 §6.3.4). Never served. */
-  heldListingVersions?: Array<{ locator: string; listingId: string; version: number; contentHash: string }>;
+  heldListingVersions?: Array<{ locator: string; listingId: string; version: number; contentHash: string; reason?: "anchor-unread" | "content-hold" }>;
   /**
    * By Listing content hash, what a kept copy needs when its anchor cannot be read: the signed
    * `validity.notAfter` (null when none was signed) and the signing key. Never served.

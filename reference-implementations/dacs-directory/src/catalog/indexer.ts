@@ -285,7 +285,10 @@ export async function indexRegistration(
       ]) {
         if (held.locator !== anchor) continue;
         noteVersion(held.listingId, held.version, held.contentHash);
-        heldListingVersions.push(held);
+        heldListingVersions.push({
+          ...held,
+          reason: evidence.kind === "unread" ? "anchor-unread" : "content-hold",
+        });
       }
       // A passing fault says nothing about the anchor: the Listing stays as last observed, unless a held
       // notice or a saved declaration of other bytes already shows it was replaced, or it no longer stands.

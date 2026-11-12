@@ -117,3 +117,43 @@ test("hosted index hashes a historical Listing with its frozen profile and a cur
     assert.equal(hashes["svc-4"], contentHash(stripSignature(current)));
   } finally { globalThis.fetch = original; }
 });
+
+test("a seller with a held listing from a refused anchor answers 503 instead of a partial index", async () => {
+  store.saveCatalog({
+    catalogVersion: "1", generatedAt: 1,
+    sellers: [{
+      primaryClaim: claim, displayName: "seller",
+      listings: [listingRecord(9)],
+      heldListingVersions: [{ locator: locator(10), listingId: "svc-10", version: 1, contentHash: "abc", reason: "anchor-unread" }],
+    }] as never,
+  });
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ success: true, owner: `0x${hex}`, programName: "opaque", data: { listingId: "svc-9" } });
+  try {
+    const response = await GET(new NextRequest(`http://localhost/api/dacs/wellknown-files?claim=${claim}`));
+    assert.equal(response.status, 503);
+    const body = await response.json();
+    assert.equal(body.files, undefined);
+    assert.match(body.error, /held listing after refused anchor read/);
+  } finally { globalThis.fetch = original; }
+});
+
+test("a non-blocking content-hold does not force 503", async () => {
+  store.saveCatalog({
+    catalogVersion: "1", generatedAt: 1,
+    sellers: [{
+      primaryClaim: claim, displayName: "seller",
+      listings: [listingRecord(11)],
+      heldListingVersions: [{ locator: locator(12), listingId: "svc-12", version: 1, contentHash: "def", reason: "content-hold" }],
+    }] as never,
+  });
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ success: true, owner: `0x${hex}`, programName: "opaque", data: { listingId: "svc-11" } });
+  try {
+    const response = await GET(new NextRequest(`http://localhost/api/dacs/wellknown-files?claim=${claim}`));
+    assert.equal(response.status, 200);
+    const files = (await response.json()).files as Record<string, string>;
+    const listed = JSON.parse(files["/.well-known/dacs/listings.json"]).listings;
+    assert.deepEqual(listed.map((entry: { listingId: string }) => entry.listingId), ["svc-11"]);
+  } finally { globalThis.fetch = original; }
+});
